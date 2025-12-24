@@ -1,13 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Study2</title></head>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Study 2 - Step2 Read Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    .box { border: 1px solid #ccc; border-radius: 12px; padding: 20px; max-width: 720px; }
+    .title { font-size: 28px; margin: 0 0 14px; }
+    pre { background: #f6f6f6; padding: 12px; border-radius: 10px; overflow-x: auto; }
+    .ok { color: #0a7b2e; }
+    .bad { color: #b00020; }
+    .note { color: #666; margin-top: 10px; }
+  </style>
+</head>
 <body>
-  <h1 id="msg">Loading...</h1>
+  <div class="box">
+    <div class="title">Study 2 · Step 2 (Read Test)</div>
+    <div id="status">Loading…</div>
+    <pre id="out"></pre>
+    <div class="note">
+      This page only tests Firestore read: <code>completed/counts</code>.<br/>
+      No assignment. No redirect. No counter increment.
+    </div>
+  </div>
 
+  <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
   <script>
+    // ===== Firebase init =====
     const firebaseConfig = {
       apiKey: "AIzaSyC4F6HeywZSGpPYCKxnKLbdyGoFSpz0V_A",
       authDomain: "study2-balanced.firebaseapp.com",
@@ -18,16 +43,44 @@
       measurementId: "G-10JWV2SR8L"
     };
 
-    try {
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.firestore();
-      document.getElementById("msg").textContent = "Firebase init OK";
-      console.log("Firebase init OK", db);
-    } catch (e) {
-      document.getElementById("msg").textContent = "Firebase init ERROR: " + e.message;
-      console.error(e);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ===== STEP 2: Read completed/counts =====
+    async function readCompletedCounts() {
+      const statusEl = document.getElementById("status");
+      const outEl = document.getElementById("out");
+
+      try {
+        const snap = await db.collection("completed").doc("counts").get();
+
+        if (!snap.exists) {
+          statusEl.innerHTML = '<span class="bad">❌ Missing doc:</span> completed/counts';
+          outEl.textContent =
+`Firestore document does not exist.
+
+Fix:
+Firestore Console → create:
+completed (collection) / counts (document)
+fields: A (number), B (number), C (number)
+set them to 0.`;
+          return;
+        }
+
+        const d = snap.data() || {};
+        statusEl.innerHTML = '<span class="ok">✅ Read success:</span> completed/counts';
+        outEl.textContent = JSON.stringify(d, null, 2);
+
+      } catch (e) {
+        statusEl.innerHTML = '<span class="bad">❌ Firestore read error</span>';
+        outEl.textContent = e.message;
+        console.error(e);
+      }
     }
+
+    readCompletedCounts();
   </script>
 </body>
 </html>
+
 

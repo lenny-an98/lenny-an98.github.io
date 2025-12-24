@@ -39,6 +39,12 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+  // STEP A: Google Form URLs (pilot)
+  const FORM_URL = {
+  A: "https://forms.gle/9XCqASn6oiWoKwzw7",
+  B: "https://forms.gle/aobLrgCog4Z6mPx2A",
+  C: "https://forms.gle/5jwjiibiHsJZ8sCdA",
+};
 
   // --- Local persistence keys ---
   const LS_PID = "study2_pid";
@@ -94,7 +100,7 @@
     .then(({ chosen, fromCache }) => {
       document.getElementById("cond").textContent = chosen;
       document.getElementById("idline").textContent =
-        `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"}`;
+        `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"} · Next: ${FORM_URL[chosen]}`;
     })
     .catch((err) => {
       document.getElementById("cond").textContent = "ERROR";

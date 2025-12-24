@@ -8,7 +8,7 @@
 
   <title>Study 2 - Random Assignment</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 40px; }
+     body { font-family: Arial, sans-serif; padding: 40px; visibility: hidden; }
     .box { border: 1px solid #ccc; border-radius: 12px; padding: 20px; max-width: 640px; }
     .cond { font-size: 40px; margin: 10px 0; }
     .note { color: #666; }
@@ -113,20 +113,14 @@
     assignBalancedConditionOnce()
       .then(({ chosen, fromCache, closed }) => {
         if (closed) {
-          window.location.replace(CLOSED_URL);
-          return;
+            window.location.replace(CLOSED_URL);
+            return;
         }
-
-        document.getElementById("cond").textContent = chosen;
-        document.getElementById("idline").textContent =
-            `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"} · Redirecting...`;
-
-        setTimeout(() => {
-            window.location.replace(FORM_URL[chosen]);
-        }, 2000);
-
-      })
+  // 조건 표시/텍스트 표시 전부 생략하고 즉시 이동
+        window.location.replace(FORM_URL[chosen]);
+        })
       .catch((err) => {
+        document.body.style.visibility = "visible";
         document.getElementById("cond").textContent = "ERROR";
         document.getElementById("idline").textContent = err.message;
         console.error(err);

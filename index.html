@@ -1,11 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Hello Experiment</title>
+  <meta charset="utf-8" />
+  <title>Study 2 - Random Assignment</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    .box { border: 1px solid #ccc; border-radius: 12px; padding: 20px; max-width: 640px; }
+    .cond { font-size: 40px; margin: 10px 0; }
+    .note { color: #666; }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #ccc; cursor: pointer; }
+  </style>
 </head>
 <body>
-  <h1>Hello, this is my experiment page</h1>
-  <p>If you can see this, GitHub Pages works.</p>
+  <div class="box">
+    <h1>Study 2</h1>
+    <p class="note">This page assigns you to a condition (A/B/C) at random.</p>
+
+    <div>Assigned condition:</div>
+    <div id="cond" class="cond">...</div>
+
+    <p class="note" id="idline"></p>
+
+    <button id="reroll">Re-randomize (for testing)</button>
+  </div>
+
+  <script>
+    function randomCondition() {
+      const conditions = ["A", "B", "C"];
+      const idx = Math.floor(Math.random() * conditions.length);
+      return conditions[idx];
+    }
+
+    // simple participant id (not secure; for testing only)
+    function makeId() {
+      return "p_" + Math.random().toString(16).slice(2) + "_" + Date.now();
+    }
+
+    const pid = makeId();
+
+    function assignAndShow() {
+      const c = randomCondition();
+      document.getElementById("cond").textContent = c;
+      document.getElementById("idline").textContent = "Temporary ID (testing): " + pid;
+    }
+
+    document.getElementById("reroll").addEventListener("click", assignAndShow);
+
+    // assign once on page load
+    assignAndShow();
+  </script>
 </body>
 </html>

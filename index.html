@@ -40,12 +40,15 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
   // STEP A: Google Form URLs (pilot)
+  const MAX_PER_CONDITION = 25;
+
   const FORM_URL = {
   A: "https://forms.gle/9XCqASn6oiWoKwzw7",
   B: "https://forms.gle/aobLrgCog4Z6mPx2A",
   C: "https://forms.gle/5jwjiibiHsJZ8sCdA",
 };
 
+  const CLOSED_URL = "https://lenny-an98.github.io/closed.html";
   // --- Local persistence keys ---
   const LS_PID = "study2_pid";
   const LS_COND = "study2_condition";
@@ -77,36 +80,53 @@
         C: Number(data.C ?? 0),
       };
 
-      const minCount = Math.min(counts.A, counts.B, counts.C);
-      const candidates = Object.keys(counts).filter(k => counts[k] === minCount);
-      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+// 1) 아직 정원(MAX) 안 찬 조건만 후보
+const open = Object.keys(counts).filter(k => counts[k] < MAX_PER_CONDITION);
 
-      tx.update(ref, {
-        [pick]: firebase.firestore.FieldValue.increment(1),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+// 2) 전부 찼으면: 여기서 종료 (카운트 업데이트 절대 없음)
+if (open.length === 0) {
+  return "__CLOSED__";
+}
+
+// 3) 열린 조건들 중에서 최소값을 가진 것들만 후보
+const minOpenCount = Math.min(...open.map(k => counts[k]));
+const candidates = open.filter(k => counts[k] === minOpenCount);
+const pick = candidates[Math.floor(Math.random() * candidates.length)];
+
+// 4) 여기서만 카운트 증가
+tx.update(ref, {
+  [pick]: firebase.firestore.FieldValue.increment(1),
+  updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+});
+
+return pick;
+
 
       return pick;
     });
 
-    localStorage.setItem(LS_COND, chosen);
-    return { chosen, fromCache: false };
+if (chosen === "__CLOSED__") {
+  return { chosen, fromCache: false, closed: true };
+}
+
+localStorage.setItem(LS_COND, chosen);
+return { chosen, fromCache: false, closed: false };
   }
 
   // --- Run on load ---
   const pid = getOrCreatePid();
 
   assignBalancedConditionOnce()
-    .then(({ chosen, fromCache }) => {
-      document.getElementById("cond").textContent = chosen;
-      document.getElementById("idline").textContent =
-        `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"} · Next: ${FORM_URL[chosen]}`;
-    })
-    .catch((err) => {
-      document.getElementById("cond").textContent = "ERROR";
-      document.getElementById("idline").textContent = err.message;
-      console.error(err);
-    });
+.then(({ chosen, fromCache, closed }) => {
+  if (closed) {
+    window.location.replace(CLOSED_URL);
+    return;
+  }
+
+  document.getElementById("cond").textContent = chosen;
+  document.getElementById("idline").textContent =
+    `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"} · Next: ${FORM_URL[chosen]}`;
+})
 
   </script>
 </body>

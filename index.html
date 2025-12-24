@@ -12,15 +12,8 @@
     Loading…
   </div>
 
-  <!-- Firebase SDK (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
   <script>
     // ===== 설정 =====
-    const MAX_PER_CONDITION = 25;
-
-    // ✅ 네가 준 prefilled 링크들(조건별 폼)
     const FORM_URL = {
       A: "https://docs.google.com/forms/d/e/1FAIpQLSc_c5qcndSnP9-CFOVhJFMIOk7Ju2pVOB9u4VwrGZJFInkNCQ/viewform?usp=pp_url&entry.2035357625=8f9a2c7e&entry.1637470054=1f9a2c7e1",
       B: "https://docs.google.com/forms/d/e/1FAIpQLSdW8yroFiAHq6ZVGBIykdM53rA4yKSc6TbiTYEroO3GZHk3WA/viewform?usp=pp_url&entry.786136671=8f9a2c7e&entry.1344347264=2f9a2c7e2",
@@ -29,22 +22,13 @@
 
     const CLOSED_URL = "https://lenny-an98.github.io/closed.html";
 
+    // ✅ 서버가 배정 결정(완전판)
+    const ASSIGN_URL = "https://us-central1-study2-balanced.cloudfunctions.net/assignCondition";
+
     // localStorage keys
     const LS_PID  = "study2_pid";
     const LS_COND = "study2_condition";
 
-    // Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyC4F6HeywZSGpPYCKxnKLbdyGoFSpz0V_A",
-      authDomain: "study2-balanced.firebaseapp.com",
-      projectId: "study2-balanced",
-      storageBucket: "study2-balanced.firebasestorage.app",
-      messagingSenderId: "54961171728",
-      appId: "1:54961171728:web:b01672dbc59a47f0f1c995",
-      measurementId: "G-10JWV2SR8L"
-    };
-
-    // ===== 유틸 =====
     function setMsg(t) { document.getElementById("msg").textContent = t; }
 
     function getOrCreatePid() {
@@ -57,83 +41,55 @@
     }
 
     function hardRedirect(url) {
-      // cache-bust만 붙여서(테스트 시) 뒤로가기도 조금 불편하게
       const u = url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now();
       window.location.replace(u);
     }
 
-    // ===== 핵심 로직 =====
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    async function readCompletedCounts() {
-      const snap = await db.collection("completed").doc("counts").get();
-      if (!snap.exists) throw new Error("Missing Firestore doc: completed/counts");
-      const d = snap.data() || {};
-      return {
-        A: Number(d.A ?? 0),
-        B: Number(d.B ?? 0),
-        C: Number(d.C ?? 0),
-      };
-    }
-
-    async function assignConditionWithCap() {
-      // 재방문이면 같은 조건으로(중복 배정/중복 redirect 방지)
-      const existing = localStorage.getItem(LS_COND);
-      if (existing && FORM_URL[existing]) {
-        return { chosen: existing, fromCache: true };
-      }
-
-      // completed 기준으로 open 후보 추림
-      const completed = await readCompletedCounts();
-      const open = Object.keys(completed).filter(k => completed[k] < MAX_PER_CONDITION);
-
-      if (open.length === 0) {
-        return { closed: true };
-      }
-
-      // open 중 completed가 최소인 조건들에서 랜덤 선택
-      const minVal = Math.min(...open.map(k => completed[k]));
-      const candidates = open.filter(k => completed[k] === minVal);
-      const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-
-      // (모니터링용) assignment 카운터 증가 — cap은 여기에 걸지 않는다.
-      const ref = db.collection("counters").doc("assignment");
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists) throw new Error("Missing Firestore doc: counters/assignment");
-        tx.update(ref, {
-          [chosen]: firebase.firestore.FieldValue.increment(1),
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+    async function serverAssign(pid) {
+      const resp = await fetch(ASSIGN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pid }),
       });
 
-      localStorage.setItem(LS_COND, chosen);
-      return { chosen, fromCache: false };
+      const text = await resp.text();
+      if (!resp.ok) {
+        throw new Error(`assign failed HTTP ${resp.status} body=${text}`);
+      }
+
+      let data;
+      try { data = JSON.parse(text); } catch (e) {
+        throw new Error(`assign response not JSON: ${text}`);
+      }
+      return data;
     }
 
-    // ===== 실행 =====
     (async () => {
       try {
         setMsg("Assigning…");
-        const pid = getOrCreatePid(); // 지금은 폼에 안 넣고 로컬만 유지(원하면 나중에 token 강화)
-        const r = await assignConditionWithCap();
+        const pid = getOrCreatePid();
+
+        const r = await serverAssign(pid);
 
         if (r.closed) {
           hardRedirect(CLOSED_URL);
           return;
         }
 
-        // 조건은 화면에 안 보여주고 즉시 폼으로 이동
-        hardRedirect(FORM_URL[r.chosen]);
+        const chosen = r.chosen;
+        if (!FORM_URL[chosen]) {
+          throw new Error("Invalid chosen condition from server: " + chosen);
+        }
+
+        // 편의상 저장(조건 노출은 없음)
+        localStorage.setItem(LS_COND, chosen);
+
+        hardRedirect(FORM_URL[chosen]);
       } catch (e) {
-        setMsg("ERROR: " + e.message);
         console.error(e);
+        setMsg("ERROR: " + (e && e.message ? e.message : e));
       }
     })();
   </script>
 </body>
 </html>
-
-
-

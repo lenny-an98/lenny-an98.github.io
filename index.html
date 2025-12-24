@@ -119,7 +119,12 @@
 
         document.getElementById("cond").textContent = chosen;
         document.getElementById("idline").textContent =
-          `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"} · Next: ${FORM_URL[chosen]}`;
+            `Participant ID: ${pid} · ${fromCache ? "Revisit" : "New assignment"} · Redirecting...`;
+
+        setTimeout(() => {
+            window.location.replace(FORM_URL[chosen]);
+        }, 2000);
+
       })
       .catch((err) => {
         document.getElementById("cond").textContent = "ERROR";
